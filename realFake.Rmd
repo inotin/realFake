@@ -1,0 +1,168 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+df = read.csv("/Users/inotin/Dropbox/4441/FinalProject/textVecDF.csv")
+
+```
+
+```{r}
+df$X = NULL
+glimpse(df)
+```
+
+```{r}
+dfs <- df
+dfs["n_words"]<-rowSums(dfs[,1:500])
+dfs[,1:500]=NULL
+dfs[1:3,]
+dfs$tr<-as.factor(dfs$tr)
+```
+```{r}
+ggplot(dfs, aes(y=n_words)) + geom_boxplot()
+ggplot(dfs, aes(x=n_words)) + geom_histogram()
+ggplot(dfs, aes(x=tr, y=n_words)) + geom_boxplot()
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+```{r}
+smp_size <- floor(0.70 * nrow(df))
+
+## set the seed to make your partition reproducible
+set.seed(123)
+train_ind <- sample(seq_len(nrow(df)), size = smp_size)
+
+train <- df[train_ind, ]
+test <- df[-train_ind, ]
+```
+
+```{r}
+m <- glm(tr ~ ., data = train, family = binomial)
+```
+
+```{r}
+summary(m)
+```
+```{r}
+pr <- predict(m,type = "response", newdata = test)
+pr <- ifelse(pr>0.5,1,0)
+tableNotPCA = table(pr, test$tr)
+tableNotPCA
+```
+```{r}
+library(corrplot)
+(6908+6441)/sum(tableNotPCA)
+cor_1 <- round(cor(df), 2)
+corrplot(cor_1, method = "color")
+```
+
+```{r}
+sort(m$coefficients, decreasing = TRUE)/max(m$coefficients)
+
+```
+```{r}
+s <- summary(m)
+t<-coef(s)[,c(1,4)]
+
+v <- m$coefficients/max(m$coefficients)
+sortedSignificantWords <- sort(v[t[,2]<0.05], decreasing = TRUE)
+```
+
+```{r}
+sortedSignificantWordsPositive = sortedSignificantWords[sortedSignificantWords>0]
+sortedSignificantWordsPositiveHigherThanMean = sortedSignificantWordsPositive[sortedSignificantWordsPositive>mean(sortedSignificantWordsPositive)]
+sortedSignificantWordsPositiveHigherThanMean
+
+
+#sortedSignificantWords[abs(sortedSignificantWords)>mean(abs(sortedSignificantWords))]
+```
+
+```{r}
+sortedSignificantWordsNegative = sortedSignificantWords[sortedSignificantWords<0]
+sortedSignificantWordsNegativeHigherThanMean = sortedSignificantWordsNegative[sortedSignificantWordsNegative<mean(sortedSignificantWordsNegative)]
+sortedSignificantWordsNegative
+```
+PCA
+```{r}
+dfPCAx <- df
+dfPCAx$tr = NULL
+dfPCAy <- df$tr
+
+```
+
+```{r}
+library(factoextra)
+res.pca <- princomp(dfPCAx, scale = TRUE)
+fviz_eig(res.pca)
+```
+We can see an "elbow" at n=3 dimensions, which means that we can use 3 principal components 
+```{r}
+
+smp_size <- floor(0.70 * nrow(dfPCAx))
+
+## set the seed to make your partition reproducible
+set.seed(123)
+train_ind <- sample(seq_len(nrow(dfPCAx)), size = smp_size)
+
+train <- dfPCAx[train_ind, ]
+test <- dfPCAx[-train_ind, ]
+
+```
+
+```{r}
+dfPCA = data.frame(res.pca$scores[,1:3])
+dfPCA$tr <- df$tr
+dfPCA
+```
+
+```{r}
+smp_size <- floor(0.70 * nrow(dfPCA))
+
+## set the seed to make your partition reproducible
+set.seed(123)
+train_ind <- sample(seq_len(nrow(dfPCA)), size = smp_size)
+
+trainPCA <- dfPCA[train_ind, ]
+testPCA <- dfPCA[-train_ind, ]
+
+mPCA <- glm(tr ~ ., data = trainPCA, family = binomial)
+
+prPCA <- predict(mPCA,type = "response", newdata = testPCA)
+prPCA <- ifelse(prPCA>0.5,1,0)
+
+```
+```{r}
+tablePCA = table(prPCA, test$tr)
+tablePCA
+accPCA = (tablePCA[0,0]+tablePCA[1,1])/sum(tablePCA)
+accPCA
+(6131+5190)/sum(tablePCA)
+```
+
+
+```{r}
+summary(mPCA)
+```
+
+```{r}
+fviz_cos2(res.pca, choice = "var", axes = 3:3, top = 10)
+```
+```{r}
+library(car)
+boxTidwellß(tr ~ ., data = train)
+```
+
