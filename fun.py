@@ -1,4 +1,5 @@
 import random
+import math
 from IPython.display import clear_output
 
 def funfacts():
@@ -72,13 +73,22 @@ def funfacts():
 
     print("The more you know...", random.choice(lst))
 
-def funProgressBar(fraction, total, previous):
+def funProgressBar(fraction, total, previous, step = 10):
     current = fraction/total
-    if current != previous and round(current * 100) % 10 == 0:
+    
+    if step <=0 or step>=100:
+        step = 10
+    probOfFact = max(math.log10(step)/2, 0.25)
+
+    st = total / (100/step)
+
+    if current != previous and round(current % st) == 0:
         clear_output(wait=True)
         print("["+'{:_<20}'.format("*"*round(current * 20))+"]")
         print(f"{round(current * 100)}% COMPLETED")
-        if random.random() >= 0.5:
+        
+        if random.random() <= probOfFact:
             print("In case you're bored waiting:")
             funfacts()
+        
     return current
